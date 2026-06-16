@@ -1,0 +1,46 @@
+{
+  "summary": "Backend-only testing for GymFlow API. 30/31 pytest tests passed (96.7%). All auth, plans CRUD, members CRUD, renewal logic (active extends from expiry, expired starts today), expiring buckets, dashboard structure, reminders scheduler (with idempotency + reminders_enabled flag), manual reminder sends, settings round-trip, gym profile, and multi-tenant isolation (Gym A cannot read/modify Gym B members or plans — returns 404) work correctly. Forgot/reset password flow verified end-to-end by parsing the dev reset token from backend logs. Only failure: POST /api/register-push returns 500 when the upstream Emergent push provider returns 401 with the placeholder key — spec requires 201 with non-blocking warning.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/register-push",
+        "issue": "Returns HTTP 500 ('EMERGENT_PUSH_KEY missing or invalid') when the upstream Emergent push relay returns 401. Per the spec/PRD, the endpoint must return 201 to the caller even when the upstream relay 401s (placeholder key in dev) and only log a non-blocking warning. Fix: in server.py around lines 917-918, replace `raise HTTPException(500, ...)` for the 401 branch with a `logger.warning(...)` + `return` so the local registration still completes and the response is 201. Note: the local DB upsert into `push_tokens` already happens before the relay attempt, so the data is persisted — only the response code is wrong.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gymflow_api.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix POST /api/register-push to return 201 (with non-blocking warning) when upstream returns 401, instead of raising HTTPException(500). The local push_tokens upsert already succeeds — only the response code needs to change. See server.py lines 915-921."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 950 lines — close to the 700-line guideline. Consider splitting into routers (auth, members, plans, reminders, dashboard) for maintainability.",
+    "`@app.on_event('shutdown')` is deprecated in FastAPI — migrate to lifespan context manager.",
+    "`import random` inside _mock_whatsapp_send (line 762) should be moved to module-level imports.",
+    "Dashboard month-range computation (lines 686-701) has an unused `m_start = ... if i == 0 else None` branch — dead code; the real computation happens right below.",
+    "`/api/members` list endpoint applies `status_filter` AFTER skip/limit at the DB level, so pagination + status filter combo can return fewer than `limit` items even when more match. Acceptable for current scale but worth noting.",
+    "Reset-token expiry comparison (line 371) uses `datetime.fromisoformat(rec['expires_at'])` which yields a tz-aware datetime; comparing against `now_utc()` is correct but brittle if the stored value ever loses tz info.",
+    "No rate limiting on /api/auth/login or /api/auth/forgot-password — acceptable for MVP but flag for production."
+  ],
+  "updated_files": [
+    "/app/backend/tests/conftest.py (new)",
+    "/app/backend/tests/test_gymflow_api.py (new)"
+  ],
+  "success_rate": {"backend": "96.7%", "frontend": "not tested (backend-only per request)"},
+  "seed_data_creation": "Each test creates fresh gyms via POST /api/auth/signup with TEST_-prefixed names/emails per test_credentials.md. Multi-tenant tests create two independent gyms (A & B) and confirm strict isolation.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 31 backend tests are in /app/backend/tests/test_gymflow_api.py and use EXPO_PUBLIC_BACKEND_URL (not EXPO_BACKEND_URL). Note frontend/.env exposes the public URL under EXPO_PUBLIC_BACKEND_URL — the system prompt's 'EXPO_BACKEND_URL' label resolves to that here. Reset-password test scrapes /var/log/supervisor/backend.err.log to find the token, so the backend must be running with that log path. Re-run: `cd /app/backend && python -m pytest tests/test_gymflow_api.py -v`.",
+  "rca_of_issue": "register-push bug RCA: server.py (register_push, lines 907-926) inserts the device token into MongoDB push_tokens collection, then relays to https://integrations.emergentagent.com/api/v1/push/users/register with the X-Push-Key header. EMERGENT_PUSH_KEY is set to the literal string 'placeholder' in /app/backend/.env (dev). The upstream Emergent push integration rejects the placeholder with a 401 Unauthorized response. The handler then raises `HTTPException(500, 'EMERGENT_PUSH_KEY missing or invalid')`. The PRD/spec explicitly states upstream 401 is expected in dev and the endpoint must still return 201 (non-blocking warning). Reproduction: `curl -X POST $BACKEND/api/register-push -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"user_id\":\"<uid>\",\"platform\":\"ios\",\"device_token\":\"abc\"}'` returns 500. Mitigation: change the 401 branch in register_push to `logger.warning('EMERGENT_PUSH_KEY missing or invalid (push not registered upstream)'); return {'status': 'registered_locally'}` so FastAPI emits the route's declared 201 status."
+}
