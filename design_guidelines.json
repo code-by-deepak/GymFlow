@@ -1,0 +1,118 @@
+{
+  "project_name": "GymFlow",
+  "app_type": "mobile_web_app",
+  "design_philosophy": {
+    "theme": "light",
+    "archetype": "4 (Swiss & High-Contrast)",
+    "core_principles": [
+      "Progressive disclosure: Show top priority metric first, reveal details on tap.",
+      "Mobile-optimized B2B: Thumb-friendly tap targets (min 44px), always-visible bottom nav.",
+      "Data-dense but breathable: Flat cards, 1px borders, no heavy shadows.",
+      "Role-aware: Built for gym owners to track revenue and expiry, not for members."
+    ]
+  },
+  "colors": {
+    "background": "#F9FAFB",
+    "surface": "#FFFFFF",
+    "primary": "#0A0A0A",
+    "primary_foreground": "#FFFFFF",
+    "accent_blue": "#2563EB",
+    "accent_blue_hover": "#1D4ED8",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "danger": "#EF4444",
+    "border": "#E5E7EB",
+    "text_main": "#111827",
+    "text_muted": "#6B7280"
+  },
+  "typography": {
+    "headings": {
+      "family": "Cabinet Grotesk, sans-serif",
+      "weights": ["500", "700", "900"],
+      "usage": "H1 to H4, numbers on metric cards."
+    },
+    "body": {
+      "family": "Satoshi, sans-serif",
+      "weights": ["400", "500", "700"],
+      "usage": "Body copy, labels, navigation text."
+    },
+    "scale": {
+      "h1": "text-3xl tracking-tight leading-none",
+      "h2": "text-2xl tracking-tight leading-tight",
+      "h3": "text-xl font-bold tracking-tight",
+      "metric_value": "text-3xl sm:text-4xl font-black tracking-tighter",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-gray-500",
+      "tiny_label": "text-[10px] sm:text-xs font-semibold tracking-widest uppercase"
+    }
+  },
+  "layout": {
+    "global": {
+      "container": "w-full max-w-md mx-auto min-h-screen bg-[#F9FAFB] pb-24 relative shadow-2xl overflow-x-hidden",
+      "screen_padding": "px-4 py-6"
+    },
+    "dashboard_grid": "grid grid-cols-2 gap-3",
+    "list_spacing": "space-y-3",
+    "bottom_navigation": {
+      "container": "fixed bottom-0 left-0 right-0 max-w-md mx-auto h-16 bg-white/90 backdrop-blur-xl border-t border-gray-200 flex justify-around items-center z-50",
+      "item": "flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-400",
+      "item_active": "text-black font-semibold"
+    }
+  },
+  "components": {
+    "card": {
+      "base": "bg-white rounded-2xl border border-gray-200 p-4",
+      "metric_card": "flex flex-col justify-between h-28"
+    },
+    "button": {
+      "primary": "w-full h-12 bg-black text-white rounded-xl font-semibold flex items-center justify-center active:scale-[0.98] transition-transform",
+      "secondary": "w-full h-12 bg-gray-100 text-black rounded-xl font-semibold flex items-center justify-center active:scale-[0.98] transition-transform",
+      "danger": "w-full h-12 bg-red-50 text-red-600 rounded-xl font-semibold flex items-center justify-center active:scale-[0.98] transition-transform"
+    },
+    "input": {
+      "base": "w-full h-12 bg-white border border-gray-300 rounded-xl px-4 text-base focus:border-black focus:ring-1 focus:ring-black outline-none transition-all"
+    },
+    "bottom_sheet": {
+      "container": "fixed inset-x-0 bottom-0 max-w-md mx-auto bg-white rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-50 p-6 transform transition-transform",
+      "overlay": "fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+    },
+    "chart": {
+      "container": "h-56 w-full mt-4",
+      "guideline": "Use Recharts. Hide grid lines. Use single solid color line (e.g. #2563EB) with subtle area gradient."
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "size_default": "w-5 h-5",
+    "size_bottom_nav": "w-6 h-6"
+  },
+  "screens": {
+    "auth": "Clean minimal login. 'GymFlow' text logo in Cabinet Grotesk. Simple inputs, large black button.",
+    "onboarding": "4-step wizard using a progress bar. Each step asks one thing clearly (Gym Name -> First Plan -> First Member -> WhatsApp Connect).",
+    "dashboard": "Top: Welcome + quick actions row (circular buttons: Add Member, New Plan, Send Blast). Middle: 2x3 grid for the 6 metric cards. Bottom: Revenue/Expiry trend chart.",
+    "members": "Search bar sticky at top. Filter pills (Active, Expiring, Expired) horizontally scrollable. Member list items showing Avatar, Name, Plan, Expiry Date pill.",
+    "member_details": "Profile header. Sections: Personal, Membership (current plan), Payment History, WhatsApp Logs.",
+    "plans": "List of plans as flat cards showing Name, Duration, Price, and active subscriber count.",
+    "reminders": "Log of WhatsApp messages sent. Status pills: Green (Delivered), Yellow (Sent), Red (Failed).",
+    "settings": "List UI with chevrons. Sections: Gym Profile, WhatsApp Config, Reminder Templates."
+  },
+  "media": {
+    "images": {
+      "onboarding_bg": {
+        "url": "https://images.unsplash.com/photo-1671970922029-0430d2ae122c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBneW0lMjBpbnRlcmlvciUyMGFyY2hpdGVjdHVyZXxlbnwwfHx8fDE3ODE1NzQ5Mzd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Modern gym interior to be used with a heavy white or black overlay for the onboarding success screen."
+      }
+    }
+  },
+  "testing": {
+    "data_testid_rules": "All interactive elements (buttons, nav items, inputs, list items) MUST have a data-testid attribute formatted as kebab-case, role-based. e.g., 'bottom-nav-dashboard', 'metric-card-revenue', 'add-member-button'."
+  },
+  "instructions_to_main_agent": [
+    "Treat this as a mobile web app UI built with React/Tailwind. Use a wrapper div like 'w-full max-w-md mx-auto min-h-screen relative' to simulate mobile view on desktop.",
+    "Use standard HTML/Tailwind for layouts and avoid Shadcn structural components like Card if they restrict mobile spacing. Use Shadcn for complex logic (Dialogs, Select, Forms).",
+    "Replace generic Dialogs with bottom-anchored sheets for the mobile feel.",
+    "Ensure all text meets WCAG AA contrast against its background.",
+    "For charts, use recharts with a minimal setup: no axis lines, minimal grid, pure data focus.",
+    "Include <link href='https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,900&f[]=satoshi@400,500,700&display=swap' rel='stylesheet'> in index.html to load fonts."
+  ]
+}
