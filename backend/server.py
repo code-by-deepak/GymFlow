@@ -414,9 +414,14 @@ async def patch_settings(body: SettingsBody, user: CurrentUser = Depends(get_cur
 @api.get("/plans")
 async def list_plans(user: CurrentUser = Depends(get_current_user)):
     docs = await plans.find({"gym_id": user.gym_id}, {"_id": 0}).sort("duration_days", 1).to_list(500)
-    # Include subscriber count
+    # Single aggregation to compute members-per-plan (avoids N+1)
+    pipeline = [
+        {"$match": {"gym_id": user.gym_id}},
+        {"$group": {"_id": "$plan_id", "count": {"$sum": 1}}},
+    ]
+    counts = {row["_id"]: row["count"] async for row in members.aggregate(pipeline)}
     for d in docs:
-        d["active_members"] = await members.count_documents({"gym_id": user.gym_id, "plan_id": d["id"]})
+        d["active_members"] = counts.get(d["id"], 0)
     return docs
 
 
@@ -680,15 +685,12 @@ async def dashboard(user: CurrentUser = Depends(get_current_user)):
     }, {"_id": 0}).to_list(20000)
     monthly_revenue = sum(p.get("amount", 0) for p in pays_month)
 
-    # Last 6 months series
-    growth = []
-    revenue_trend = []
+    # Last 6 months series — single aggregation per collection (no N+1)
+    # Build the 6 month ranges first
+    months: list[tuple[str, str, str]] = []  # (label, start_iso, end_iso)
     for i in range(5, -1, -1):
-        m_start = (first_of_month - timedelta(days=1)).replace(day=1) if i == 0 else None
-        # compute month start by stepping back i months
-        y, mo = today.year, today.month
-        mo_idx = mo - i
-        y_adj = y
+        mo_idx = today.month - i
+        y_adj = today.year
         while mo_idx <= 0:
             mo_idx += 12
             y_adj -= 1
@@ -699,18 +701,39 @@ async def dashboard(user: CurrentUser = Depends(get_current_user)):
             n_mo = 1
             n_y += 1
         m_end = date(n_y, n_mo, 1)
-        new_members = await members.count_documents({
-            "gym_id": user.gym_id,
-            "created_at": {"$gte": m_start.isoformat(), "$lt": m_end.isoformat()},
-        })
-        rev_pays = await payments.find({
-            "gym_id": user.gym_id,
-            "paid_at": {"$gte": m_start.isoformat(), "$lt": m_end.isoformat()},
-        }, {"_id": 0, "amount": 1}).to_list(20000)
-        rev = sum(p.get("amount", 0) for p in rev_pays)
-        label = m_start.strftime("%b")
-        growth.append({"month": label, "value": new_members})
-        revenue_trend.append({"month": label, "value": rev})
+        months.append((m_start.strftime("%b"), m_start.isoformat(), m_end.isoformat()))
+
+    window_start = months[0][1]
+    window_end = months[-1][2]
+
+    # One query for all 6 months of new members
+    member_rows = await members.find(
+        {"gym_id": user.gym_id, "created_at": {"$gte": window_start, "$lt": window_end}},
+        {"_id": 0, "created_at": 1},
+    ).to_list(20000)
+    growth_buckets: dict[str, int] = {label: 0 for label, _, _ in months}
+    for r in member_rows:
+        ca = r.get("created_at", "")
+        for label, s, e in months:
+            if s <= ca < e:
+                growth_buckets[label] += 1
+                break
+
+    # One query for all 6 months of payments
+    pay_rows = await payments.find(
+        {"gym_id": user.gym_id, "paid_at": {"$gte": window_start, "$lt": window_end}},
+        {"_id": 0, "paid_at": 1, "amount": 1},
+    ).to_list(20000)
+    revenue_buckets: dict[str, float] = {label: 0 for label, _, _ in months}
+    for r in pay_rows:
+        pa = r.get("paid_at", "")
+        for label, s, e in months:
+            if s <= pa < e:
+                revenue_buckets[label] += r.get("amount", 0)
+                break
+
+    growth = [{"month": label, "value": growth_buckets[label]} for label, _, _ in months]
+    revenue_trend = [{"month": label, "value": revenue_buckets[label]} for label, _, _ in months]
 
     # Expiry trend next 4 weeks
     expiry_trend = []

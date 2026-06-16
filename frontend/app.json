@@ -19,7 +19,6 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.emergent.gymflow",
-      "googleServicesFile": "./google-services.json",
       "permissions": ["NOTIFICATIONS"]
     },
     "web": {
